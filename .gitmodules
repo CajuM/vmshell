@@ -1,0 +1,4 @@
+[submodule "payload-libc/musl"]
+	path = payload-libc/musl
+	url = git://git.musl-libc.org/musl
+	branch = v1.2.2
