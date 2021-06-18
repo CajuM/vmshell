@@ -5,7 +5,7 @@ PWD := $(shell pwd)
 CFLAGS := -mgeneral-regs-only -fPIC -fno-stack-protector -O3 -Wall -Werror -U_FORTIFY_SOURCE
 LDFLAGS := -static -fPIE -nostdlib
 
-all: stage2.bin stage2-nop.bin stage2-nop2.bin stage2-lock.bin
+all: stage2-linux.bin stage2-nop.bin stage2-nop2.bin stage2-lock.bin
 
 %.S.o: %.S
 	gcc -c $(CFLAGS) -o $@ $<

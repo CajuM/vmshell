@@ -95,12 +95,10 @@
 /* end cribbed */
 
 /* we can't include stdlib.h so... */
-extern int atoi (const char *__nptr)
-     __THROW __attribute_pure__ __nonnull ((1)) __wur;
+extern int atoi (const char *__nptr);
 
 extern unsigned long int strtoul (const char *__restrict __nptr,
-                                  char **__restrict __endptr, int __base)
-     __THROW __nonnull ((1));
+                                  char **__restrict __endptr, int __base);
 
 struct kvm_state {
 	int kvm_fd;

@@ -26,8 +26,21 @@
 
 #include "stage1/stage1.h"
 
-extern void *_binary_stage1_bin_start;
-extern void *_binary_stage1_bin_size;
+extern uint8_t _binary_stage1_bin_start[];
+extern uint8_t _binary_stage1_bin_end[];
+
+static bool quit = false;
+
+void sig_handler(int signum) {
+	printf("Quitting...\n");
+
+	if (signum == SIGINT)
+		quit = true;
+}
+
+void help() {
+	printf("vmshell <pid> <stage2.bin>\n");
+}
 
 static int is_kvm(pid_t pid) {
 	bool has_kvm, has_kvm_vm, has_kvm_vcpu = false;
@@ -263,13 +276,17 @@ static int cure(pid_t kvm_pid, struct shell_state *state) {
 }
 
 int main(int argc, char **argv) {
-	if (argc != 3)
+	if (argc != 3) {
+		help();
 		return -1;
+	}
 
 	char *endptr;
 	pid_t kvm_pid = (pid_t) strtol(argv[1], &endptr, 10);
-	if (*endptr != '\0')
+	if (*endptr != '\0') {
+		help();
 		return -1;
+	}
 
 	int stage2_fd = open(argv[2], O_RDONLY | O_CLOEXEC);
 	if (stage2_fd < 0) {
@@ -296,9 +313,12 @@ int main(int argc, char **argv) {
 
 	struct shell_state *state = malloc(sizeof(struct shell_state));
 
+	signal(SIGINT, sig_handler);
+
 	int r = infect(
 		kvm_pid, state,
-		&_binary_stage1_bin_start, (size_t) &_binary_stage1_bin_size,
+		_binary_stage1_bin_start,
+		(size_t) (_binary_stage1_bin_end - _binary_stage1_bin_start),
 		stage2_start, stage2_len);
 	if (r < 0) {
 		perror("infect");
@@ -312,9 +332,7 @@ int main(int argc, char **argv) {
 			return -1;
 		}
 
-		if (state->shell_cmd == SHELL_CMD_AGAIN)
-			usleep(1000);
-		else
+		if (state->shell_cmd == SHELL_CMD_CONT)
 			usleep(10000);
 
 		time_t now = time(NULL);
@@ -323,7 +341,7 @@ int main(int argc, char **argv) {
 
 			start = now;
 		}
-	} while (state->shell_cmd != SHELL_CMD_MMAP);
+	} while (!quit && (state->shell_cmd != SHELL_CMD_MMAP));
 
 	void *shell_ring = (void *) state->shell_ret;
 
@@ -332,6 +350,9 @@ int main(int argc, char **argv) {
 		perror("cure");
 		return -1;
 	}
+
+	if (quit)
+		return -1;
 
 	free(state);
 
@@ -374,7 +395,9 @@ int main(int argc, char **argv) {
 		}
 	};
 
-	while (true) {
+	printf("The shell is ready.\n");
+
+	while (!quit) {
 		if (process_vm_readv(kvm_pid, shell_ring_in_local, 3, shell_ring_in_remote, 3, 0) < 0) {
 			perror("process_vm_readv");
 			return -1;
